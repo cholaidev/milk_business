@@ -24,6 +24,7 @@ class MilkBusinessApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Milk Business',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green.shade700),
         appBarTheme: const AppBarTheme(
