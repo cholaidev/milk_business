@@ -63,6 +63,16 @@ class MilkEntryRepository {
     return maps.map(MilkEntry.fromMap).toList();
   }
 
+  Future<int> update(MilkEntry entry) async {
+    final db = await AppDatabase.instance.database;
+    return db.update(
+      'milk_entries',
+      entry.toMap(),
+      where: 'id = ?',
+      whereArgs: [entry.id],
+    );
+  }
+
   Future<int> delete(int id) async {
     final db = await AppDatabase.instance.database;
     return db.delete('milk_entries', where: 'id = ?', whereArgs: [id]);

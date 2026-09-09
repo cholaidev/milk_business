@@ -25,6 +25,16 @@ class ExpenseRepository {
     return maps.map(Expense.fromMap).toList();
   }
 
+  Future<int> update(Expense expense) async {
+    final db = await AppDatabase.instance.database;
+    return db.update(
+      'expenses',
+      expense.toMap(),
+      where: 'id = ?',
+      whereArgs: [expense.id],
+    );
+  }
+
   Future<int> delete(int id) async {
     final db = await AppDatabase.instance.database;
     return db.delete('expenses', where: 'id = ?', whereArgs: [id]);

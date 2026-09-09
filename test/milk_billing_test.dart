@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:milk_business/models/customer.dart';
 import 'package:milk_business/models/expense.dart';
 import 'package:milk_business/models/milk_entry.dart';
+import 'package:milk_business/repositories/expense_repository.dart';
+import 'package:milk_business/repositories/milk_entry_repository.dart';
 import 'package:milk_business/services/billing_service.dart';
 import 'package:milk_business/services/dashboard_service.dart';
 
@@ -145,6 +147,36 @@ void main() {
 
       expect(customer.name, 'Ram Kumar');
       expect(customer.defaultRate, 60);
+    });
+
+    test('requires a default rate greater than zero', () {
+      expect(
+        () => Customer(
+          id: 1,
+          name: 'Ram Kumar',
+          phone: '9876543210',
+          address: 'Main Road',
+          defaultRate: 0,
+          isActive: true,
+        ),
+        throwsAssertionError,
+      );
+    });
+  });
+
+  group('Expense', () {
+    test('repository supports updating an expense record', () {
+      final repository = ExpenseRepository();
+
+      expect(repository.update, isA<Function>());
+    });
+  });
+
+  group('MilkEntryRepository', () {
+    test('supports updating an entry record', () {
+      final repository = MilkEntryRepository();
+
+      expect(repository.update, isA<Function>());
     });
   });
 

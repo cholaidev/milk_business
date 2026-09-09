@@ -15,7 +15,7 @@ class Customer {
     required this.isActive,
   }) : assert(name.trim().isNotEmpty, 'Customer name cannot be empty'),
        assert(phone.trim().isNotEmpty, 'Phone number cannot be empty'),
-       assert(defaultRate >= 0, 'Default rate cannot be negative');
+       assert(defaultRate > 0, 'Default rate must be greater than zero');
 
   Map<String, dynamic> toMap() {
     return {

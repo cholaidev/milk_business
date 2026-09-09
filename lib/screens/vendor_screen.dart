@@ -64,7 +64,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     }
   }
 
-  Future<void> _saveExpense() async {
+  Future<void> _saveExpense([Expense? expense]) async {
     final title = _titleController.text.trim();
     final amount = double.tryParse(_amountController.text) ?? 0;
 
@@ -75,16 +75,135 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
       return;
     }
 
-    await _repository.insert(
-      Expense(title: title, amount: amount, date: _selectedDate),
+    final expenseData = Expense(
+      id: expense?.id,
+      title: title,
+      amount: amount,
+      date: _selectedDate,
     );
+
+    if (expense == null) {
+      await _repository.insert(expenseData);
+    } else {
+      await _repository.update(expenseData);
+    }
+
     _titleController.clear();
     _amountController.clear();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Saved: $title • ₹${amount.toStringAsFixed(0)}')),
+      SnackBar(
+        content: Text(
+          expense == null
+              ? 'Saved: $title • ₹${amount.toStringAsFixed(0)}'
+              : 'Updated: $title • ₹${amount.toStringAsFixed(0)}',
+        ),
+      ),
     );
     await _loadExpenses();
+  }
+
+  Future<void> _showEditExpense(Expense expense) async {
+    _titleController.text = expense.title;
+    _amountController.text = expense.amount.toStringAsFixed(0);
+    setState(() => _selectedDate = expense.date);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Expense'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _titleController,
+                decoration: const InputDecoration(labelText: 'Expense name'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _amountController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: '₹ ',
+                ),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                onTap: _pickDate,
+                child: InputDecorator(
+                  decoration: const InputDecoration(labelText: 'Date'),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          DateFormat('dd MMM yyyy').format(_selectedDate),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(Icons.calendar_today),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              _titleController.clear();
+              _amountController.clear();
+              Navigator.pop(context, false);
+            },
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              await _saveExpense(expense);
+              if (!context.mounted) return;
+              Navigator.pop(context, true);
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      _titleController.clear();
+      _amountController.clear();
+      await _loadExpenses();
+    }
+  }
+
+  Future<void> _deleteExpense(Expense expense) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete expense?'),
+        content: Text('Delete ${expense.title}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _repository.delete(expense.id!);
+      await _loadExpenses();
+    }
   }
 
   @override
@@ -209,8 +328,32 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                               ..._expenses
                                   .take(5)
                                   .map(
-                                    (expense) => Text(
-                                      '${DateFormat('dd MMM').format(expense.date)} • ${expense.title}: ₹${expense.amount.toStringAsFixed(0)}',
+                                    (expense) => Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            '${DateFormat('dd MMM').format(expense.date)} • ${expense.title}: ₹${expense.amount.toStringAsFixed(0)}',
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            size: 18,
+                                          ),
+                                          onPressed: () =>
+                                              _showEditExpense(expense),
+                                          tooltip: 'Edit expense',
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete,
+                                            size: 18,
+                                          ),
+                                          onPressed: () =>
+                                              _deleteExpense(expense),
+                                          tooltip: 'Delete expense',
+                                        ),
+                                      ],
                                     ),
                                   )
                             else

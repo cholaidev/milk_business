@@ -113,11 +113,11 @@ class _CustomerScreenState extends State<CustomerScreen> {
                         phone.isEmpty ||
                         phone.length != 10 ||
                         int.tryParse(phone) == null ||
-                        rate < 0) {
+                        rate <= 0) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text(
-                            'Enter a valid 10-digit mobile number.',
+                            'Enter a valid 10-digit mobile number and default milk rate greater than 0.',
                           ),
                         ),
                       );

@@ -49,6 +49,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   int _milkRefreshToken = 0;
+  int _billRefreshToken = 0;
 
   void _refreshMilkScreen() {
     setState(() {
@@ -56,16 +57,30 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _refreshBillScreen() {
+    setState(() {
+      _billRefreshToken += 1;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final screens = [
       const DashboardScreen(),
-      CustomerScreen(onCustomerChanged: _refreshMilkScreen),
+      CustomerScreen(
+        onCustomerChanged: () {
+          _refreshMilkScreen();
+          _refreshBillScreen();
+        },
+      ),
       DailyMilkScreen(
         key: ValueKey('daily_milk_$_milkRefreshToken'),
         onCustomerChanged: _refreshMilkScreen,
       ),
-      const MonthlyBillScreen(),
+      MonthlyBillScreen(
+        key: ValueKey('monthly_bill_$_billRefreshToken'),
+        onCustomerChanged: _refreshBillScreen,
+      ),
       const ExpenseScreen(),
     ];
 

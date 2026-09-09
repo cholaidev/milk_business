@@ -94,7 +94,7 @@ class _DailyMilkScreenState extends State<DailyMilkScreen> {
     }
   }
 
-  Future<void> _saveEntry() async {
+  Future<void> _saveEntry([MilkEntry? editingEntry]) async {
     if (_selectedCustomer == null) {
       ScaffoldMessenger.of(
         context,
@@ -114,6 +114,7 @@ class _DailyMilkScreenState extends State<DailyMilkScreen> {
     }
 
     final entry = MilkEntry(
+      id: editingEntry?.id,
       customerId: _selectedCustomer!.id!,
       date: _selectedDate,
       morningLitres: morning,
@@ -121,7 +122,12 @@ class _DailyMilkScreenState extends State<DailyMilkScreen> {
       rate: rate,
     );
 
-    await _milkEntryRepository.insert(entry);
+    if (editingEntry == null) {
+      await _milkEntryRepository.insert(entry);
+    } else {
+      await _milkEntryRepository.update(entry);
+    }
+
     if (!mounted) return;
 
     _morningController.clear();
@@ -129,9 +135,116 @@ class _DailyMilkScreenState extends State<DailyMilkScreen> {
     _rateController.text = _selectedCustomer!.defaultRate.toStringAsFixed(0);
     await _loadMilkEntries();
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Milk entry saved.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          editingEntry == null ? 'Milk entry saved.' : 'Milk entry updated.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showEditEntryDialog(MilkEntry entry) async {
+    final morningController = TextEditingController(
+      text: entry.morningLitres.toStringAsFixed(1),
+    );
+    final eveningController = TextEditingController(
+      text: entry.eveningLitres.toStringAsFixed(1),
+    );
+    final rateController = TextEditingController(
+      text: entry.rate.toStringAsFixed(0),
+    );
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit milk entry'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: morningController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Morning milk (L)',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: eveningController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Evening milk (L)',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: rateController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(
+                  labelText: 'Rate per litre (₹)',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              _morningController.text = morningController.text;
+              _eveningController.text = eveningController.text;
+              _rateController.text = rateController.text;
+              await _saveEntry(entry);
+              if (!context.mounted) return;
+              Navigator.pop(context, true);
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      await _loadMilkEntries();
+    }
+  }
+
+  Future<void> _deleteEntry(MilkEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete milk entry?'),
+        content: Text(
+          'Delete ${entry.customerId} entry for ${DateFormat('dd MMM').format(entry.date)}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _milkEntryRepository.delete(entry.id!);
+      await _loadMilkEntries();
+    }
   }
 
   @override
@@ -277,21 +390,19 @@ class _DailyMilkScreenState extends State<DailyMilkScreen> {
                               subtitle: Text(
                                 'M: ${entry.morningLitres} L • E: ${entry.eveningLitres} L',
                               ),
-                              trailing: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.end,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    'Total: ${totalMilk.toStringAsFixed(1)} L',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, size: 18),
+                                    onPressed: () =>
+                                        _showEditEntryDialog(entry),
+                                    tooltip: 'Edit milk entry',
                                   ),
-                                  Text(
-                                    '₹${entry.amount.toStringAsFixed(0)}',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall,
+                                  IconButton(
+                                    icon: const Icon(Icons.delete, size: 18),
+                                    onPressed: () => _deleteEntry(entry),
+                                    tooltip: 'Delete milk entry',
                                   ),
                                 ],
                               ),

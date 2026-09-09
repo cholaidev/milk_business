@@ -8,7 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class MonthlyBillScreen extends StatefulWidget {
-  const MonthlyBillScreen({super.key});
+  final VoidCallback? onCustomerChanged;
+
+  const MonthlyBillScreen({super.key, this.onCustomerChanged});
 
   @override
   State<MonthlyBillScreen> createState() => _MonthlyBillScreenState();
@@ -33,16 +35,32 @@ class _MonthlyBillScreenState extends State<MonthlyBillScreen> {
   Future<void> _loadCustomers() async {
     final customers = await _customerRepository.fetchAll();
     if (!mounted) return;
+
+    final activeCustomers = customers
+        .where((customer) => customer.isActive)
+        .toList();
+
     setState(() {
-      _customers = customers;
-      _selectedCustomer = null;
+      _customers = activeCustomers;
+      _selectedCustomer = activeCustomers.isNotEmpty
+          ? activeCustomers.first
+          : null;
       _entries = [];
       _loading = false;
     });
+
+    if (_selectedCustomer != null) {
+      await _loadEntries();
+    }
   }
 
   Future<void> _loadEntries() async {
-    if (_selectedCustomer == null) return;
+    if (_selectedCustomer == null) {
+      if (!mounted) return;
+      setState(() => _entries = []);
+      return;
+    }
+
     final entries = await _milkEntryRepository.fetchEntriesForCustomerAndMonth(
       _selectedCustomer!.id!,
       _selectedMonth.year,
@@ -127,58 +145,68 @@ class _MonthlyBillScreenState extends State<MonthlyBillScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Customer: ${_selectedCustomer?.name ?? '-'}',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Month: ${DateFormat('MMMM yyyy').format(_selectedMonth)}',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 20),
-                          _SectionTitle(title: 'FIRST HALF — 1 to 15'),
-                          _buildTable(
-                            _entries
-                                .where((entry) => entry.date.day <= 15)
-                                .toList(),
-                          ),
-                          _SummaryRow(
-                            label: 'Total',
-                            litres: breakdown.firstHalfTotalLitres,
-                            amount: breakdown.firstHalfTotalAmount,
-                          ),
-                          const SizedBox(height: 20),
-                          _SectionTitle(
-                            title:
-                                'SECOND HALF — 16 to ${DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day}',
-                          ),
-                          _buildTable(
-                            _entries
-                                .where((entry) => entry.date.day > 15)
-                                .toList(),
-                          ),
-                          _SummaryRow(
-                            label: 'Total',
-                            litres: breakdown.secondHalfTotalLitres,
-                            amount: breakdown.secondHalfTotalAmount,
-                          ),
-                          const Divider(height: 28),
-                          _SummaryRow(
-                            label: 'MONTHLY TOTAL',
-                            litres: breakdown.totalLitres,
-                            amount: breakdown.totalAmount,
-                            emphatic: true,
-                          ),
-                        ],
+                  if (_selectedCustomer == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          'No active customer available for billing.',
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Customer: ${_selectedCustomer?.name ?? '-'}',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Month: ${DateFormat('MMMM yyyy').format(_selectedMonth)}',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 20),
+                            _SectionTitle(title: 'FIRST HALF — 1 to 15'),
+                            _buildTable(
+                              _entries
+                                  .where((entry) => entry.date.day <= 15)
+                                  .toList(),
+                            ),
+                            _SummaryRow(
+                              label: 'Total',
+                              litres: breakdown.firstHalfTotalLitres,
+                              amount: breakdown.firstHalfTotalAmount,
+                            ),
+                            const SizedBox(height: 20),
+                            _SectionTitle(
+                              title:
+                                  'SECOND HALF — 16 to ${DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day}',
+                            ),
+                            _buildTable(
+                              _entries
+                                  .where((entry) => entry.date.day > 15)
+                                  .toList(),
+                            ),
+                            _SummaryRow(
+                              label: 'Total',
+                              litres: breakdown.secondHalfTotalLitres,
+                              amount: breakdown.secondHalfTotalAmount,
+                            ),
+                            const Divider(height: 28),
+                            _SummaryRow(
+                              label: 'MONTHLY TOTAL',
+                              litres: breakdown.totalLitres,
+                              amount: breakdown.totalAmount,
+                              emphatic: true,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
